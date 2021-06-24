@@ -42,8 +42,25 @@ apt install -y \
   bison build-essential libssl-dev libyaml-dev libreadline6-dev \
   zlib1g-dev libncurses5-dev libffi-dev libgdbm-dev \
   nginx redis-server redis-tools postgresql postgresql-contrib \
-  certbot python-certbot-nginx yarn libidn11-dev libicu-dev libjemalloc-dev
+  yarn libidn11-dev libicu-dev libjemalloc-dev certbot python-certbot-nginx
 ```
+
+{{< hint style="info" >}}
+In Ubuntu 20.04 this command may fail with regards to missing certbot-related packages. This is due to certbot installed via snapd there. 
+
+Remove the last two packages from `apt install` command provided above and try again. Install snapd with:
+
+```bash
+apt install snapd
+```
+
+Next install certbot via snapd:
+
+```bash
+snap install --classic certbot
+ln -s /snap/bin/certbot /usr/local/bin
+```
+{{< /hint >}}
 
 ### Installing Ruby {#installing-ruby}
 
@@ -175,23 +192,33 @@ exit
 Copy the configuration template for nginx from the Mastodon directory:
 
 ```bash
-cp /home/mastodon/live/dist/nginx.conf /etc/nginx/sites-available/mastodon
+cp /home/mastodon/live/dist/nginx-split.conf /etc/nginx/sites-available/mastodon
+cp /home/mastodon/live/dist/nginx-split-ssl.conf /etc/nginx/sites-available/mastodon-ssl
 ln -s /etc/nginx/sites-available/mastodon /etc/nginx/sites-enabled/mastodon
 ```
 
-Then edit `/etc/nginx/sites-available/mastodon` to replace `example.com` with your own domain name, and make any other adjustments you might need.
+Then edit `/etc/nginx/sites-available/mastodon` and `/etc/nginx/sites-available/mastodon-ssl` to replace `example.com` with your own domain name, and make any other adjustments you might need.
 
 Reload nginx for the changes to take effect:
+
+```bash
+systemctl restart nginx
+```
 
 ### Acquiring a SSL certificate {#acquiring-a-ssl-certificate}
 
 We’ll use Let’s Encrypt to get a free SSL certificate:
 
 ```bash
-certbot --nginx -d example.com
+certbot certonly --webroot -w /home/mastodon/live/public -d example.com
 ```
 
-This will obtain the certificate, automatically update `/etc/nginx/sites-available/mastodon` to use the new certificate, and reload nginx for the changes to take effect.
+After successfully obtaining the certificate you can enable the SSL configuration of nginx and reload it for the changes to take effect.
+
+```bash
+ln -s /etc/nginx/sites-available/mastodon-ssl /etc/nginx/sites-enabled/mastodon-ssl
+systemctl restart nginx
+```
 
 At this point you should be able to visit your domain in the browser and see the elephant hitting the computer screen error page. This is because we haven’t started the Mastodon process yet.
 
